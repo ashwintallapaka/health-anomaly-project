@@ -1,0 +1,671 @@
+<title>Vitals Anomaly Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --page:#f9f9f7;
+    --surface:#fcfcfb;
+    --surface-2:#f2f0e8;
+    --ink:#0b0b0b;
+    --ink-2:#52514e;
+    --muted:#898781;
+    --grid:#e1e0d9;
+    --axis:#c3c2b7;
+    --border:rgba(11,11,11,0.10);
+    --accent:#4a3aa7;
+    --accent-soft:#ece7fa;
+    --good:#0ca30c;
+    --warning:#c07f00;
+    --critical:#d03b3b;
+    --good-soft:#e2f3e0;
+    --warning-soft:#fbedcf;
+    --critical-soft:#fae1df;
+    --font-sans:'IBM Plex Sans',system-ui,-apple-system,"Segoe UI",sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --page:#0d0d0d;
+      --surface:#1a1a19;
+      --surface-2:#212120;
+      --ink:#ffffff;
+      --ink-2:#c3c2b7;
+      --muted:#8f8d86;
+      --grid:#2c2c2a;
+      --axis:#3c3c39;
+      --border:rgba(255,255,255,0.12);
+      --accent:#9085e9;
+      --accent-soft:#28243f;
+      --good:#3fbf4d;
+      --warning:#fab219;
+      --critical:#e2645c;
+      --good-soft:#173318;
+      --warning-soft:#3a2c0d;
+      --critical-soft:#3a1a17;
+    }
+  }
+  :root[data-theme="dark"]{
+    --page:#0d0d0d;
+    --surface:#1a1a19;
+    --surface-2:#212120;
+    --ink:#ffffff;
+    --ink-2:#c3c2b7;
+    --muted:#8f8d86;
+    --grid:#2c2c2a;
+    --axis:#3c3c39;
+    --border:rgba(255,255,255,0.12);
+    --accent:#9085e9;
+    --accent-soft:#28243f;
+    --good:#3fbf4d;
+    --warning:#fab219;
+    --critical:#e2645c;
+    --good-soft:#173318;
+    --warning-soft:#3a2c0d;
+    --critical-soft:#3a1a17;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--page);
+    color:var(--ink);
+    font-family:var(--font-sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{
+    max-width:1180px;
+    margin:0 auto;
+    padding:40px 28px 64px;
+    display:flex;
+    flex-direction:column;
+    gap:28px;
+  }
+
+  /* ---------- header ---------- */
+  .topbar{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    padding-bottom:20px;
+    border-bottom:1px solid var(--border);
+  }
+  .eyebrow{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:600;
+  }
+  h1{
+    margin:0;
+    font-size:32px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+    text-wrap:balance;
+  }
+  .meta{
+    margin:0;
+    max-width:70ch;
+    font-size:14px;
+    line-height:1.6;
+    color:var(--ink-2);
+  }
+  .meta code{
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:1px 6px;
+  }
+  .meta a{ color:var(--accent); text-decoration:none; border-bottom:1px solid currentColor; }
+  .meta a:hover{ opacity:0.75; }
+
+  /* ---------- stat tiles ---------- */
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:1px;
+    background:var(--border);
+    border:1px solid var(--border);
+    border-radius:12px;
+    overflow:hidden;
+  }
+  .stat{
+    background:var(--surface);
+    padding:20px 22px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .stat-label{
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-weight:600;
+  }
+  .stat-value{
+    font-family:var(--font-mono);
+    font-size:30px;
+    font-weight:600;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:-0.02em;
+  }
+  .stat-value.critical{ color:var(--critical); }
+  .stat-sub{ font-size:12.5px; color:var(--ink-2); }
+
+  /* ---------- main grid ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns:1.5fr 1fr;
+    gap:20px;
+    align-items:start;
+  }
+  @media (max-width:920px){ .grid{ grid-template-columns:1fr; } }
+
+  .panel{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:22px;
+  }
+  .panel-head{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:4px;
+    flex-wrap:wrap;
+  }
+  .panel-title{ font-size:15px; font-weight:600; margin:0; }
+  .panel-sub{ font-size:12.5px; color:var(--muted); margin:0 0 14px; }
+
+  /* filter toggle */
+  .toggle{
+    display:inline-flex;
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:2px;
+    background:var(--surface-2);
+    gap:2px;
+  }
+  .toggle button{
+    font-family:var(--font-sans);
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ink-2);
+    background:transparent;
+    border:none;
+    border-radius:6px;
+    padding:6px 12px;
+    cursor:pointer;
+  }
+  .toggle button.active{ background:var(--surface); color:var(--ink); box-shadow:0 1px 2px var(--border); }
+  .toggle button:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+
+  /* legend */
+  .legend{ display:flex; gap:16px; flex-wrap:wrap; margin:14px 0 4px; }
+  .legend-item{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-2); }
+  .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; flex:none; }
+  .dot.good{ background:var(--good); }
+  .dot.warning{ background:var(--warning); }
+  .dot.critical{ background:var(--critical); }
+
+  /* chart */
+  .chart-wrap{ position:relative; }
+  svg.chart{ width:100%; height:auto; display:block; overflow:visible; }
+  .grid-line{ stroke:var(--grid); stroke-width:1; }
+  .threshold-line{ stroke:var(--muted); stroke-width:1.2; stroke-dasharray:3 3; }
+  .axis-line{ stroke:var(--axis); stroke-width:1; }
+  .axis-label{ fill:var(--muted); font-family:var(--font-mono); font-size:10.5px; }
+  .axis-title{ fill:var(--ink-2); font-family:var(--font-sans); font-size:11.5px; font-weight:600; }
+  .threshold-label{ fill:var(--ink-2); font-family:var(--font-mono); font-size:10px; }
+  .mark{ stroke:var(--surface); stroke-width:1.5; cursor:pointer; transition:opacity .12s; }
+  .mark.good{ fill:var(--good); }
+  .mark.warning{ fill:var(--warning); }
+  .mark.critical{ fill:var(--critical); }
+  .mark.dim{ opacity:0.15; }
+
+  .tooltip{
+    position:absolute;
+    pointer-events:none;
+    background:var(--ink);
+    color:var(--page);
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    line-height:1.5;
+    border-radius:6px;
+    padding:8px 10px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.22);
+    opacity:0;
+    transform:translate(-50%,calc(-100% - 10px));
+    transition:opacity .08s;
+    white-space:nowrap;
+    z-index:5;
+  }
+  .tooltip.show{ opacity:1; }
+  .tooltip b{ font-family:var(--font-sans); }
+
+  /* rule cards */
+  .rules{ display:flex; flex-direction:column; gap:12px; }
+  .rule-card{
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px 16px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .rule-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .rule-name{ font-size:13.5px; font-weight:600; }
+  .rule-count{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--ink-2);
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:2px 9px;
+    font-variant-numeric:tabular-nums;
+  }
+  .rule-code{
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    color:var(--accent);
+    background:var(--accent-soft);
+    border-radius:6px;
+    padding:6px 9px;
+    display:block;
+    width:fit-content;
+  }
+  .rule-desc{ font-size:12px; color:var(--ink-2); line-height:1.5; margin:0; }
+
+  /* table */
+  .table-scroll{ overflow-x:auto; }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  thead th{
+    text-align:left;
+    font-size:11px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-weight:600;
+    padding:0 12px 10px;
+    border-bottom:1px solid var(--border);
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:9px 12px;
+    border-bottom:1px solid var(--grid);
+    vertical-align:middle;
+    white-space:nowrap;
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  td.id{ font-family:var(--font-mono); color:var(--ink-2); }
+  td.num{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    font-size:11.5px;
+    font-weight:600;
+    padding:3px 9px 3px 7px;
+    border-radius:20px;
+  }
+  .chip.good{ background:var(--good-soft); color:var(--good); }
+  .chip.warning{ background:var(--warning-soft); color:var(--warning); }
+  .chip.critical{ background:var(--critical-soft); color:var(--critical); }
+  .chip svg{ width:11px; height:11px; flex:none; }
+  .rule-tags{ display:flex; gap:5px; flex-wrap:wrap; }
+  .rule-tag{
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    color:var(--ink-2);
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:1px 6px;
+  }
+  .none{ color:var(--muted); }
+
+  footer{
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.6;
+    padding-top:8px;
+    border-top:1px solid var(--border);
+  }
+  footer a{ color:var(--accent); }
+</style>
+
+<div class="wrap">
+
+  <header class="topbar">
+    <div class="eyebrow">Spark &middot; Detection Engine</div>
+    <h1>Vitals Anomaly Engine</h1>
+    <p class="meta">
+      Generated by running <code>spark/detection_rules.py</code> from the
+      <a href="https://github.com/ashwintallapaka/health-anomaly-project" target="_blank" rel="noopener">health-anomaly-project</a>
+      repo against 54 synthetic vitals readings &mdash; the MQTT&rarr;Kafka&rarr;Spark
+      pipeline isn't wired end-to-end yet, so this exercises the rule engine directly
+      rather than a live stream.
+    </p>
+  </header>
+
+  <section class="stats" id="stats"></section>
+
+  <section class="grid">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <p class="panel-title">Heart rate vs. SpO&#8322;</p>
+          <p class="panel-sub">Each point is one reading &middot; dashed lines mark rule thresholds</p>
+        </div>
+        <div class="toggle" id="chartToggle" role="group" aria-label="Filter readings">
+          <button data-filter="all" class="active">All</button>
+          <button data-filter="flagged">Flagged only</button>
+        </div>
+      </div>
+      <div class="legend">
+        <span class="legend-item"><span class="dot good"></span>Normal</span>
+        <span class="legend-item"><span class="dot warning"></span>One rule fired</span>
+        <span class="legend-item"><span class="dot critical"></span>Two or more fired</span>
+      </div>
+      <div class="chart-wrap">
+        <svg class="chart" id="chart" viewBox="0 0 620 380" role="img" aria-label="Scatter plot of heart rate against SpO2, colored by severity"></svg>
+        <div class="tooltip" id="tooltip"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <p class="panel-title">Rule engine</p>
+          <p class="panel-sub">The exact thresholds in <code style="font-family:var(--font-mono);font-size:11.5px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;">detection_rules.py</code></p>
+        </div>
+      </div>
+      <div class="rules" id="rules"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="panel-title">All readings</p>
+        <p class="panel-sub">54 patients &middot; sorted by patient ID</p>
+      </div>
+      <div class="toggle" id="tableToggle" role="group" aria-label="Filter table">
+        <button data-filter="all" class="active">All</button>
+        <button data-filter="flagged">Flagged only</button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Heart rate</th>
+            <th>Temp</th>
+            <th>SpO&#8322;</th>
+            <th>Status</th>
+            <th>Rule(s) triggered</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    Data is synthetic, generated to exercise every branch of the current rule set (not real patient
+    data). Source thresholds: <code style="font-family:var(--font-mono);">spo2 &lt; 92</code>,
+    <code style="font-family:var(--font-mono);">temp &gt; 38.0&deg;C</code>,
+    <code style="font-family:var(--font-mono);">heart_rate &lt; 50 or &gt; 120</code> &middot;
+    from <a href="https://github.com/ashwintallapaka/health-anomaly-project/blob/main/spark/detection_rules.py" target="_blank" rel="noopener">spark/detection_rules.py</a>.
+  </footer>
+
+</div>
+
+<script>
+const DATA = {"patients": [
+{"id":"P001","hr":81,"temp":36.8,"spo2":98,"flags":[],"severity":"good"},
+{"id":"P002","hr":88,"temp":36.9,"spo2":97,"flags":[],"severity":"good"},
+{"id":"P003","hr":80,"temp":36.8,"spo2":97,"flags":[],"severity":"good"},
+{"id":"P004","hr":74,"temp":36.6,"spo2":96,"flags":[],"severity":"good"},
+{"id":"P005","hr":60,"temp":36.6,"spo2":99,"flags":[],"severity":"good"},
+{"id":"P006","hr":75,"temp":36.7,"spo2":98,"flags":[],"severity":"good"},
+{"id":"P007","hr":150,"temp":39.4,"spo2":89,"flags":["spo2","temp","heart_rate"],"severity":"critical"},
+{"id":"P008","hr":64,"temp":36.2,"spo2":87,"flags":["spo2"],"severity":"warning"},
+{"id":"P009","hr":82,"temp":39.2,"spo2":97,"flags":["temp"],"severity":"warning"},
+{"id":"P010","hr":76,"temp":37.0,"spo2":98,"flags":[],"severity":"good"},
+{"id":"P011","hr":72,"temp":37.1,"spo2":97,"flags":[],"severity":"good"},
+{"id":"P012","hr":80,"temp":36.7,"spo2":100,"flags":[],"severity":"good"},
+{"id":"P013","hr":70,"temp":36.7,"spo2":97,"flags":[],"severity":"good"},
+{"id":"P014","hr":69,"temp":37.2,"spo2":97,"flags":[],"severity":"good"},
+{"id":"P015","hr":67,"temp":36.4,"spo2":98,"flags":[],"severity":"good"},
+{"id":"P016","hr":68,"temp":36.7,"spo2":98,"flags":[],"severity":"good"},
+{"id":"P017","hr":91,"temp":36.6,"spo2":97,"flags":[],"severity":"good"},
+{"id":"P018","hr":86,"temp":37.0,"spo2":97,"flags":[],"severity":"good"},
+{"id":"P019","hr":74,"temp":37.1,"spo2":97,"flags":[],"severity":"good"},
+{"id":"P020","hr":86,"temp":36.2,"spo2":91,"flags":["spo2"],"severity":"warning"},
+{"id":"P021","hr":38,"temp":36.9,"spo2":98,"flags":["heart_rate"],"severity":"warning"},
+{"id":"P022","hr":63,"temp":36.6,"spo2":97,"flags":[],"severity":"good"},
+{"id":"P023","hr":54,"temp":36.6,"spo2":97,"flags":[],"severity":"good"},
+{"id":"P024","hr":70,"temp":38.8,"spo2":97,"flags":["temp"],"severity":"warning"},
+{"id":"P025","hr":79,"temp":36.7,"spo2":96,"flags":[],"severity":"good"},
+{"id":"P026","hr":36,"temp":39.3,"spo2":83,"flags":["spo2","temp","heart_rate"],"severity":"critical"},
+{"id":"P027","hr":62,"temp":36.9,"spo2":99,"flags":[],"severity":"good"},
+{"id":"P028","hr":93,"temp":36.6,"spo2":99,"flags":[],"severity":"good"},
+{"id":"P029","hr":68,"temp":37.0,"spo2":98,"flags":[],"severity":"good"},
+{"id":"P030","hr":38,"temp":39.7,"spo2":86,"flags":["spo2","temp","heart_rate"],"severity":"critical"},
+{"id":"P031","hr":46,"temp":37.1,"spo2":97,"flags":["heart_rate"],"severity":"warning"},
+{"id":"P032","hr":156,"temp":38.5,"spo2":86,"flags":["spo2","temp","heart_rate"],"severity":"critical"},
+{"id":"P033","hr":38,"temp":38.4,"spo2":86,"flags":["spo2","temp","heart_rate"],"severity":"critical"},
+{"id":"P034","hr":65,"temp":36.4,"spo2":99,"flags":[],"severity":"good"},
+{"id":"P035","hr":74,"temp":36.9,"spo2":99,"flags":[],"severity":"good"},
+{"id":"P036","hr":76,"temp":37.2,"spo2":98,"flags":[],"severity":"good"},
+{"id":"P037","hr":76,"temp":36.8,"spo2":97,"flags":[],"severity":"good"},
+{"id":"P038","hr":83,"temp":36.5,"spo2":98,"flags":[],"severity":"good"},
+{"id":"P039","hr":74,"temp":37.1,"spo2":89,"flags":["spo2"],"severity":"warning"},
+{"id":"P040","hr":68,"temp":37.0,"spo2":98,"flags":[],"severity":"good"},
+{"id":"P041","hr":72,"temp":36.7,"spo2":97,"flags":[],"severity":"good"},
+{"id":"P042","hr":43,"temp":37.0,"spo2":96,"flags":["heart_rate"],"severity":"warning"},
+{"id":"P043","hr":74,"temp":37.4,"spo2":95,"flags":[],"severity":"good"},
+{"id":"P044","hr":80,"temp":37.6,"spo2":99,"flags":[],"severity":"good"},
+{"id":"P045","hr":46,"temp":36.6,"spo2":98,"flags":["heart_rate"],"severity":"warning"},
+{"id":"P046","hr":71,"temp":36.9,"spo2":95,"flags":[],"severity":"good"},
+{"id":"P047","hr":92,"temp":36.9,"spo2":96,"flags":[],"severity":"good"},
+{"id":"P048","hr":102,"temp":36.6,"spo2":96,"flags":[],"severity":"good"},
+{"id":"P049","hr":69,"temp":36.6,"spo2":100,"flags":[],"severity":"good"},
+{"id":"P050","hr":60,"temp":36.7,"spo2":99,"flags":[],"severity":"good"},
+{"id":"P051","hr":78,"temp":36.9,"spo2":97,"flags":[],"severity":"good"},
+{"id":"P052","hr":151,"temp":40.0,"spo2":86,"flags":["spo2","temp","heart_rate"],"severity":"critical"},
+{"id":"P053","hr":68,"temp":36.9,"spo2":97,"flags":[],"severity":"good"},
+{"id":"P054","hr":67,"temp":36.6,"spo2":96,"flags":[],"severity":"good"}
+],
+"summary": {"total":54,"flagged":15,"critical":6,"rate":27.8,"rule_counts":{"spo2":9,"temp":8,"heart_rate":10}}};
+
+const ICONS = {
+  good: '<svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  warning: '<svg viewBox="0 0 16 16" fill="none"><path d="M8 1.6 15 14H1L8 1.6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6.2v3.6M8 11.8h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  critical: '<svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.4" stroke="currentColor" stroke-width="1.6"/><path d="M8 4.6v4M8 11h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'
+};
+const LABELS = { good:"Normal", warning:"Flagged", critical:"Critical" };
+const RULE_LABELS = { spo2:"spo2 < 92", temp:"temp > 38.0", heart_rate:"hr < 50 / > 120" };
+
+// ---------- stat tiles ----------
+const s = DATA.summary;
+document.getElementById("stats").innerHTML = `
+  <div class="stat">
+    <span class="stat-label">Readings processed</span>
+    <span class="stat-value">${s.total}</span>
+    <span class="stat-sub">synthetic, run through the rule engine</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Flagged</span>
+    <span class="stat-value">${s.flagged}</span>
+    <span class="stat-sub">at least one rule fired</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Critical</span>
+    <span class="stat-value critical">${s.critical}</span>
+    <span class="stat-sub">two or more rules fired at once</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Detection rate</span>
+    <span class="stat-value">${s.rate}%</span>
+    <span class="stat-sub">of readings flagged</span>
+  </div>
+`;
+
+// ---------- rule cards ----------
+const RULES = [
+  { name:"SpO₂ floor", code:"spo2 < 92", desc:"Fires when blood oxygen saturation drops below 92%.", count: s.rule_counts.spo2, key:"spo2" },
+  { name:"Fever threshold", code:"temp > 38.0", desc:"Fires when body temperature rises above 38.0°C.", count: s.rule_counts.temp, key:"temp" },
+  { name:"Heart rate band", code:"hr < 50 or hr > 120", desc:"Fires when heart rate falls outside the 50–120 bpm resting/active range.", count: s.rule_counts.heart_rate, key:"heart_rate" }
+];
+document.getElementById("rules").innerHTML = RULES.map(r => `
+  <div class="rule-card">
+    <div class="rule-head">
+      <span class="rule-name">${r.name}</span>
+      <span class="rule-count">${r.count} / ${s.total}</span>
+    </div>
+    <code class="rule-code">${r.code}</code>
+    <p class="rule-desc">${r.desc}</p>
+  </div>
+`).join("");
+
+// ---------- table ----------
+function chip(sev){
+  return `<span class="chip ${sev}">${ICONS[sev]}${LABELS[sev]}</span>`;
+}
+function renderTable(filter){
+  const rows = DATA.patients.filter(p => filter === "all" || p.severity !== "good");
+  document.getElementById("tbody").innerHTML = rows.map(p => `
+    <tr>
+      <td class="id">${p.id}</td>
+      <td class="num">${p.hr} bpm</td>
+      <td class="num">${p.temp.toFixed(1)}&deg;C</td>
+      <td class="num">${p.spo2}%</td>
+      <td>${chip(p.severity)}</td>
+      <td>${p.flags.length
+          ? `<div class="rule-tags">${p.flags.map(f => `<span class="rule-tag">${RULE_LABELS[f]}</span>`).join("")}</div>`
+          : `<span class="none">&mdash;</span>`}
+      </td>
+    </tr>
+  `).join("");
+}
+renderTable("all");
+document.getElementById("tableToggle").addEventListener("click", e => {
+  const btn = e.target.closest("button");
+  if(!btn) return;
+  [...e.currentTarget.children].forEach(b => b.classList.toggle("active", b === btn));
+  renderTable(btn.dataset.filter);
+});
+
+// ---------- chart ----------
+const svg = document.getElementById("chart");
+const tooltip = document.getElementById("tooltip");
+const NS = "http://www.w3.org/2000/svg";
+const M = { top:16, right:20, bottom:40, left:44 };
+const W = 620, H = 380;
+const plotW = W - M.left - M.right;
+const plotH = H - M.top - M.bottom;
+const xMin = 20, xMax = 175;
+const yMin = 78, yMax = 101;
+
+function xScale(hr){ return M.left + (hr - xMin) / (xMax - xMin) * plotW; }
+function yScale(spo2){ return M.top + (1 - (spo2 - yMin) / (yMax - yMin)) * plotH; }
+
+function el(tag, attrs){
+  const n = document.createElementNS(NS, tag);
+  for(const k in attrs) n.setAttribute(k, attrs[k]);
+  return n;
+}
+
+function buildChart(){
+  svg.innerHTML = "";
+  const xTicks = [20,50,80,110,140,170];
+  const yTicks = [80,85,90,95,100];
+
+  xTicks.forEach(t => {
+    svg.appendChild(el("line", { class:"grid-line", x1:xScale(t), x2:xScale(t), y1:M.top, y2:M.top+plotH }));
+    svg.appendChild(el("text", { class:"axis-label", x:xScale(t), y:M.top+plotH+18, "text-anchor":"middle" })).textContent = t;
+  });
+  yTicks.forEach(t => {
+    svg.appendChild(el("line", { class:"grid-line", x1:M.left, x2:M.left+plotW, y1:yScale(t), y2:yScale(t) }));
+    const lbl = el("text", { class:"axis-label", x:M.left-10, y:yScale(t)+3, "text-anchor":"end" });
+    lbl.textContent = t;
+    svg.appendChild(lbl);
+  });
+
+  // threshold lines
+  [50,120].forEach(t => {
+    svg.appendChild(el("line", { class:"threshold-line", x1:xScale(t), x2:xScale(t), y1:M.top, y2:M.top+plotH }));
+  });
+  svg.appendChild(el("line", { class:"threshold-line", x1:M.left, x2:M.left+plotW, y1:yScale(92), y2:yScale(92) }));
+  const spo2Lbl = el("text", { class:"threshold-label", x:M.left+plotW-4, y:yScale(92)-5, "text-anchor":"end" });
+  spo2Lbl.textContent = "SpO₂ < 92";
+  svg.appendChild(spo2Lbl);
+  const hrLbl1 = el("text", { class:"threshold-label", x:xScale(50)+4, y:M.top+12 });
+  hrLbl1.textContent = "hr < 50";
+  svg.appendChild(hrLbl1);
+  const hrLbl2 = el("text", { class:"threshold-label", x:xScale(120)+4, y:M.top+12 });
+  hrLbl2.textContent = "hr > 120";
+  svg.appendChild(hrLbl2);
+
+  // axes
+  svg.appendChild(el("line", { class:"axis-line", x1:M.left, x2:M.left+plotW, y1:M.top+plotH, y2:M.top+plotH }));
+  svg.appendChild(el("line", { class:"axis-line", x1:M.left, x2:M.left, y1:M.top, y2:M.top+plotH }));
+
+  const xTitle = el("text", { class:"axis-title", x:M.left+plotW/2, y:H-6, "text-anchor":"middle" });
+  xTitle.textContent = "Heart rate (bpm)";
+  svg.appendChild(xTitle);
+  const yTitle = el("text", { class:"axis-title", x:-(M.top+plotH/2), y:14, "text-anchor":"middle", transform:"rotate(-90)" });
+  yTitle.textContent = "SpO₂ (%)";
+  svg.appendChild(yTitle);
+
+  // marks
+  DATA.patients.forEach(p => {
+    const c = el("circle", {
+      class: `mark ${p.severity}`,
+      cx: xScale(p.hr), cy: yScale(p.spo2), r: p.severity === "good" ? 3.6 : 5,
+      "data-id": p.id, "data-severity": p.severity
+    });
+    c.addEventListener("mousemove", ev => showTip(ev, p));
+    c.addEventListener("mouseleave", hideTip);
+    svg.appendChild(c);
+  });
+}
+
+function showTip(ev, p){
+  const rect = svg.getBoundingClientRect();
+  const wrapRect = ev.currentTarget.closest(".chart-wrap").getBoundingClientRect();
+  const x = xScale(p.hr) / W * rect.width + (rect.left - wrapRect.left);
+  const y = yScale(p.spo2) / H * rect.height + (rect.top - wrapRect.top);
+  tooltip.style.left = x + "px";
+  tooltip.style.top = y + "px";
+  tooltip.innerHTML = `<b>${p.id}</b> &middot; ${LABELS[p.severity]}<br>hr ${p.hr} &middot; spo₂ ${p.spo2}% &middot; temp ${p.temp.toFixed(1)}°C`;
+  tooltip.classList.add("show");
+}
+function hideTip(){ tooltip.classList.remove("show"); }
+
+function applyChartFilter(filter){
+  svg.querySelectorAll(".mark").forEach(m => {
+    const sev = m.dataset.severity;
+    m.classList.toggle("dim", filter === "flagged" && sev === "good");
+  });
+}
+
+buildChart();
+document.getElementById("chartToggle").addEventListener("click", e => {
+  const btn = e.target.closest("button");
+  if(!btn) return;
+  [...e.currentTarget.children].forEach(b => b.classList.toggle("active", b === btn));
+  applyChartFilter(btn.dataset.filter);
+});
+</script>
