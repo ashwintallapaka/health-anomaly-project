@@ -1,9 +1,16 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col, udf
 from pyspark.sql.types import StructType, StringType, IntegerType, FloatType, BooleanType
+from pymongo import MongoClient
 import sys
 sys.path.append("spark")
 from detection_rules import is_anomalous
+
+MONGO_URI = os.environ["MONGO_URI"]
 
 spark = SparkSession.builder.appName("HealthStreamDetection").getOrCreate()
 spark.sparkContext.setLogLevel("WARN")
@@ -33,10 +40,52 @@ scored = parsed.withColumn(
     anomaly_udf(col("spo2"), col("body_temp_c"), col("heart_rate"))
 )
 
+
+def write_to_mongo(batch_df, batch_id):
+    """Runs once per micro-batch. Writes every reading to latest_vitals,
+    and anomalous readings to alerts."""
+    rows = batch_df.collect()  # small batches — fine at this scale
+    if not rows:
+        return
+
+    client = MongoClient(MONGO_URI)
+    db = client["health_anomaly"]
+
+    for row in rows:
+        doc = row.asDict()
+
+        # always update the latest reading for this user
+        db.latest_vitals.update_one(
+            {"user_id": doc["user_id"]},
+            {"$set": doc},
+            upsert=True
+        )
+
+        # only write to alerts if the rule actually fired
+        if doc["detected_anomaly"]:
+            alert_doc = {
+                "_id": f"{doc['user_id']}|{doc['timestamp']}",  # idempotent — reruns upsert, don't duplicate
+                "user_id": doc["user_id"],
+                "timestamp": doc["timestamp"],
+                "heart_rate": doc["heart_rate"],
+                "body_temp_c": doc["body_temp_c"],
+                "spo2": doc["spo2"],
+                "rule": "threshold",
+                "is_injected_anomaly": doc["is_injected_anomaly"],
+            }
+            db.alerts.replace_one(
+                {"_id": alert_doc["_id"]},
+                alert_doc,
+                upsert=True
+            )
+
+    client.close()
+    print(f"Batch {batch_id}: wrote {len(rows)} readings to Mongo")
+
+
 query = scored.writeStream \
-    .format("console") \
-    .outputMode("append") \
-    .option("truncate", False) \
+    .foreachBatch(write_to_mongo) \
+    .outputMode("update") \
     .start()
 
 query.awaitTermination()
