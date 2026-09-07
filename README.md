@@ -109,10 +109,3 @@ it's the cheapest insurance against an idle cluster quietly burning credits.
   Kafka→Spark connector work will hit mismatched fields.
 - 🚧 No persistence layer yet (the schema anticipates MongoDB collections and
   HDFS batch paths, but nothing writes to either yet).
-
-## Branches
-
-Team members are working in per-person branches before merging into `main`:
-check open branches on GitHub for in-progress work (e.g. Kafka setup, Day 1
-notes, the Spark dashboard). Coordinate in your team channel before merging
-into `main` to avoid clobbering someone else's in-flight changes.
