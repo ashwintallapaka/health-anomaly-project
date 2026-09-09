@@ -6,6 +6,7 @@ venv/
 *.json
 .DS_Store
 data/*.csv
+!data/historical_vitals.csv
 spark-warehouse/
 venv/
 
