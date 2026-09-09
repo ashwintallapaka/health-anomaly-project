@@ -8,3 +8,6 @@ venv/
 data/*.csv
 spark-warehouse/
 venv/
+
+.venv-spark/
+batch_output/
