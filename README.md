@@ -187,9 +187,6 @@ It's hosted via GitHub Pages at
   `health-data` but fields `patient_id`/`temperature`, which don't match the
   bridge or streaming job. Don't run them expecting them to feed the same
   MongoDB collections the dashboard reads from.
-- 🧹 **Cleanup: duplicate `detection_rules.py`.** There's a byte-identical copy
-  at the repo root and in `spark/`. Pick one location (probably keep it in
-  `spark/`, since that's what `streaming_job.py` imports) and delete the other.
 - 🧹 **Alerts are always `rule: "threshold"`.** `ALERT_SCHEMA` anticipates a
   z-score/baseline-based rule too, but `streaming_job.py` only implements the
   fixed threshold checks in `detection_rules.py` — no baseline computation or
