@@ -28,7 +28,6 @@ wearable (simulated) → MQTT → Kafka → Spark (detection_rules.py) → Mongo
 | `infra/` | Scripts to create/delete the Dataproc cluster used for the Spark side |
 | `docs/dashboard_data_contract.md` | The MongoDB schema (`latest_vitals`, `alerts`) that the live pipeline writes to |
 | `docs/index.html` | The dashboard — rule engine vs. synthetic readings, plus the historical batch summary — hosted via [GitHub Pages](https://ashwintallapaka.github.io/health-anomaly-project/) |
-| `detection_rules.py` (repo root) | Duplicate of `spark/detection_rules.py` — see [Status](#status) |
 
 ## Getting started
 
@@ -191,3 +190,11 @@ It's hosted via GitHub Pages at
   z-score/baseline-based rule too, but `streaming_job.py` only implements the
   fixed threshold checks in `detection_rules.py` — no baseline computation or
   severity scoring yet.
+- 🧹 **`mqtt/screenshots/` is ~71 MB of raw PNGs and screen recordings** committed
+  directly into git — it's most of the repo's weight (clone size is 141 MB, ~70 MB
+  of that is git history from these files). Fine for now, but consider keeping
+  future setup evidence in a shared drive instead of the repo, or at least
+  compressing videos before committing, so clones don't keep growing.
+- 🧹 **Stale branches can be deleted.** `Ashwin-spark-dashboard`, `abhay/day1`,
+  `chhaya-batch-processing`, and `chhaya-kafka-setup` are all fully merged into
+  `main` — nothing is lost by deleting them from GitHub's Branches page.
