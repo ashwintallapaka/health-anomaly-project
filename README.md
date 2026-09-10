@@ -7,6 +7,8 @@ visualizes it on a live dashboard — built as a course project on Google Cloud
 
 ```
 wearable (simulated) → MQTT → Kafka → Spark (detection_rules.py) → MongoDB → dashboard
+                                                       ↑
+                              data/historical_vitals.csv → Spark batch job → per-patient summary
 ```
 
 ## Repo layout
@@ -14,15 +16,18 @@ wearable (simulated) → MQTT → Kafka → Spark (detection_rules.py) → Mongo
 | Path | What it is |
 |---|---|
 | `mqtt/` | Publisher/subscriber that simulates a wearable sending vitals over MQTT |
+| `mqtt/screenshots/` | Setup evidence (screenshots/recordings) from getting MQTT running locally and on the VM |
 | `kafka/mqtt_to_kafka_bridge.py` | Bridges the live pipeline: subscribes to the MQTT topic and forwards every message to Kafka unchanged |
 | `kafka/producer.py`, `kafka/consumer.py` | Standalone Day-1 demo scripts — **not** part of the live pipeline (see [Status](#status)) |
 | `spark/detection_rules.py` | The anomaly detection rules |
 | `spark/streaming_job.py` | Spark Structured Streaming job: reads from Kafka, applies the rules, writes to MongoDB |
+| `spark/batch_processing.py` | Batch job: reads historical vitals from CSV, applies the same rules, and writes a per-patient summary |
 | `spark/test_detection_rules.py`, `spark/spark_test.py`, `spark/check_version.py` | Local smoke tests / cluster version check |
+| `data/historical_vitals.csv` | Sample historical readings (3 patients, 12 rows) that `batch_processing.py` runs against |
 | `common/schemas.py` | The shared field names, topic names, and message schema every component should agree on |
 | `infra/` | Scripts to create/delete the Dataproc cluster used for the Spark side |
-| `docs/dashboard_data_contract.md` | The MongoDB schema (`latest_vitals`, `alerts`) that the dashboard reads from |
-| `docs/index.html` | The live dashboard, visualizing rule engine output against real MongoDB data — hosted via [GitHub Pages](https://ashwintallapaka.github.io/health-anomaly-project/) |
+| `docs/dashboard_data_contract.md` | The MongoDB schema (`latest_vitals`, `alerts`) that the live pipeline writes to |
+| `docs/index.html` | The dashboard — rule engine vs. synthetic readings, plus the historical batch summary — hosted via [GitHub Pages](https://ashwintallapaka.github.io/health-anomaly-project/) |
 | `detection_rules.py` (repo root) | Duplicate of `spark/detection_rules.py` — see [Status](#status) |
 
 ## Getting started
@@ -104,6 +109,21 @@ pip install pyspark==3.5.3 pymongo python-dotenv
 python spark/streaming_job.py
 ```
 
+**Run the batch job** over historical data: separate from the live streaming path,
+this reads a CSV of past readings, applies the same threshold rules, and writes a
+per-patient summary (reading count, avg/min/max heart rate, avg/max temp, avg/min
+SpO₂, anomaly count) — no Kafka, MongoDB, or broker needed.
+
+```bash
+pip install pyspark==3.5.3
+
+python spark/batch_processing.py
+# defaults to data/historical_vitals.csv -> ./batch_output (CSV)
+
+# or, with explicit paths (e.g. on Dataproc, using GCS paths):
+python spark/batch_processing.py <input_csv_path> <output_path>
+```
+
 ### Dataproc cluster (for running Spark at scale)
 
 ```bash
@@ -111,6 +131,7 @@ chmod +x infra/*.sh
 ./infra/create_cluster.sh    # ~90s to come up; auto-deletes after 2h idle
 # ... submit jobs, e.g.:
 gcloud dataproc jobs submit pyspark spark/streaming_job.py --cluster=health-cluster --region=us-central1
+gcloud dataproc jobs submit pyspark spark/batch_processing.py --cluster=health-cluster --region=us-central1 -- gs://<bucket>/historical_vitals.csv gs://<bucket>/batch_output
 ./infra/delete_cluster.sh    # run this when you're done — don't rely on max-idle alone
 ```
 
@@ -119,19 +140,38 @@ it's the cheapest insurance against an idle cluster quietly burning credits.
 
 ### Dashboard
 
-`docs/index.html` is a self-contained dashboard that reads MongoDB exports
-(`latest_vitals` and `alerts`) per the shape in `docs/dashboard_data_contract.md`,
-and shows current patient status, alert history, and the rule engine itself. It's
-hosted via GitHub Pages at
+`docs/index.html` is a self-contained dashboard with two parts: a rule-engine view
+(scatter chart, rule cards, and a filterable table) run against 54 synthetic
+readings baked into the page, and a **historical batch summary** table — the
+per-patient output of `spark/batch_processing.py` over
+`data/historical_vitals.csv` — appended below it. Both sections currently embed
+their data directly in the HTML rather than fetching it live; `docs/dashboard_data_contract.md`
+documents the MongoDB shape (`latest_vitals`, `alerts`) that the live streaming
+job writes to, for whoever wires the dashboard up to read from Mongo directly.
+It's hosted via GitHub Pages at
 **[ashwintallapaka.github.io/health-anomaly-project](https://ashwintallapaka.github.io/health-anomaly-project/)**
 (Settings → Pages → deploy from the `main` branch, `/docs` folder).
 
 ## Status
 
-- ✅ **The pipeline is wired end-to-end**: `mqtt/publisher.py` → MQTT →
+- ✅ **The live pipeline is wired end-to-end**: `mqtt/publisher.py` → MQTT →
   `kafka/mqtt_to_kafka_bridge.py` → Kafka topic `health-data` →
   `spark/streaming_job.py` → MongoDB (`health_anomaly.latest_vitals`,
-  `health_anomaly.alerts`) → `docs/index.html`.
+  `health_anomaly.alerts`).
+- ✅ **Batch processing exists**: `spark/batch_processing.py` reads
+  `data/historical_vitals.csv`, applies the same threshold rules, and writes a
+  per-patient summary (reading count, avg/min/max HR, avg/max temp, avg/min
+  SpO₂, anomaly count) to a CSV output. It's a separate, standalone job — it
+  doesn't read from or write to Kafka or MongoDB, and isn't run automatically
+  by anything else in the repo.
+- ⚠️ **`docs/index.html` isn't actually wired to MongoDB or the batch job.**
+  Both the rule-engine view and the new historical batch summary table on the
+  dashboard are static data baked into the HTML at write time (the batch
+  summary numbers were computed by hand from the current
+  `data/historical_vitals.csv`, mirroring what `batch_processing.py` outputs).
+  If the CSV or the live Mongo data changes, the dashboard needs to be
+  regenerated — it doesn't fetch either source live. `docs/dashboard_data_contract.md`
+  documents the shape for whoever picks up making that live.
 - ⚠️ **Field and topic names still don't match `common/schemas.py`.** The live
   pipeline uses topic `wearable/data` → `health-data` and fields like `user_id`,
   `heart_rate`, `body_temp_c`, `spo2` — that part is consistent across

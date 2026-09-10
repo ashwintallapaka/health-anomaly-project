@@ -352,7 +352,9 @@
       <a href="https://github.com/ashwintallapaka/health-anomaly-project" target="_blank" rel="noopener">health-anomaly-project</a>
       repo against 54 synthetic vitals readings &mdash; the MQTT&rarr;Kafka&rarr;Spark
       pipeline isn't wired end-to-end yet, so this exercises the rule engine directly
-      rather than a live stream.
+      rather than a live stream. The batch summary below is a separate run of
+      <code>spark/batch_processing.py</code> over the historical CSV export in
+      <code>data/historical_vitals.csv</code>.
     </p>
   </header>
 
@@ -420,12 +422,48 @@
     </div>
   </section>
 
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="panel-title">Historical batch summary</p>
+        <p class="panel-sub">
+          Per-patient aggregates from
+          <code style="font-family:var(--font-mono);font-size:11.5px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;">spark/batch_processing.py</code>,
+          run over
+          <code style="font-family:var(--font-mono);font-size:11.5px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;">data/historical_vitals.csv</code>
+          (12 historical readings across 3 patients) &middot; anomaly counts use the same thresholds as the live rule engine
+        </p>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Readings</th>
+            <th>Avg HR</th>
+            <th>Min / max HR</th>
+            <th>Avg temp</th>
+            <th>Max temp</th>
+            <th>Avg SpO&#8322;</th>
+            <th>Min SpO&#8322;</th>
+            <th>Anomalies</th>
+          </tr>
+        </thead>
+        <tbody id="batchTbody"></tbody>
+      </table>
+    </div>
+  </section>
+
   <footer>
-    Data is synthetic, generated to exercise every branch of the current rule set (not real patient
-    data). Source thresholds: <code style="font-family:var(--font-mono);">spo2 &lt; 92</code>,
+    Rule-engine table and chart above use synthetic data, generated to exercise every branch of the
+    current rule set (not real patient data). Source thresholds:
+    <code style="font-family:var(--font-mono);">spo2 &lt; 92</code>,
     <code style="font-family:var(--font-mono);">temp &gt; 38.0&deg;C</code>,
     <code style="font-family:var(--font-mono);">heart_rate &lt; 50 or &gt; 120</code> &middot;
     from <a href="https://github.com/ashwintallapaka/health-anomaly-project/blob/main/spark/detection_rules.py" target="_blank" rel="noopener">spark/detection_rules.py</a>.
+    The historical batch summary reflects <a href="https://github.com/ashwintallapaka/health-anomaly-project/blob/main/data/historical_vitals.csv" target="_blank" rel="noopener">data/historical_vitals.csv</a>,
+    computed by <a href="https://github.com/ashwintallapaka/health-anomaly-project/blob/main/spark/batch_processing.py" target="_blank" rel="noopener">spark/batch_processing.py</a>.
   </footer>
 
 </div>
@@ -668,4 +706,26 @@ document.getElementById("chartToggle").addEventListener("click", e => {
   [...e.currentTarget.children].forEach(b => b.classList.toggle("active", b === btn));
   applyChartFilter(btn.dataset.filter);
 });
+
+// ---------- historical batch summary ----------
+// Output of `spark/batch_processing.py` run against `data/historical_vitals.csv`
+// (same anomaly thresholds as detection_rules.py: spo2<92, temp>38.0, hr<50 or >120).
+const BATCH_SUMMARY = [
+  { user_id:"P001", total_readings:4, avg_heart_rate:91.75, min_heart_rate:74,  max_heart_rate:135, avg_body_temp_c:37.38, max_body_temp_c:39.0, avg_spo2:95.25, min_spo2:90, anomaly_count:2 },
+  { user_id:"P002", total_readings:4, avg_heart_rate:72.25, min_heart_rate:45,  max_heart_rate:85,  avg_body_temp_c:37.17, max_body_temp_c:38.3, avg_spo2:96.25, min_spo2:91, anomaly_count:2 },
+  { user_id:"P003", total_readings:4, avg_heart_rate:86.0,  min_heart_rate:70,  max_heart_rate:125, avg_body_temp_c:37.15, max_body_temp_c:38.5, avg_spo2:95.75, min_spo2:89, anomaly_count:1 }
+];
+document.getElementById("batchTbody").innerHTML = BATCH_SUMMARY.map(r => `
+  <tr>
+    <td class="id">${r.user_id}</td>
+    <td class="num">${r.total_readings}</td>
+    <td class="num">${r.avg_heart_rate.toFixed(2)} bpm</td>
+    <td class="num">${r.min_heart_rate} / ${r.max_heart_rate} bpm</td>
+    <td class="num">${r.avg_body_temp_c.toFixed(2)}&deg;C</td>
+    <td class="num">${r.max_body_temp_c.toFixed(1)}&deg;C</td>
+    <td class="num">${r.avg_spo2.toFixed(2)}%</td>
+    <td class="num">${r.min_spo2}%</td>
+    <td class="num">${r.anomaly_count} / ${r.total_readings}</td>
+  </tr>
+`).join("");
 </script>
