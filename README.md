@@ -195,6 +195,3 @@ It's hosted via GitHub Pages at
   of that is git history from these files). Fine for now, but consider keeping
   future setup evidence in a shared drive instead of the repo, or at least
   compressing videos before committing, so clones don't keep growing.
-- 🧹 **Stale branches can be deleted.** `Ashwin-spark-dashboard`, `abhay/day1`,
-  `chhaya-batch-processing`, and `chhaya-kafka-setup` are all fully merged into
-  `main` — nothing is lost by deleting them from GitHub's Branches page.
