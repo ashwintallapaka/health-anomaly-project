@@ -205,6 +205,24 @@
   .toggle button.active{ background:var(--surface); color:var(--ink); box-shadow:0 1px 2px var(--border); }
   .toggle button:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
 
+  /* pagination */
+  .pagination{ display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-top:14px; flex-wrap:wrap; }
+  .pagination button{
+    font-family:var(--font-sans);
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ink-2);
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:6px 12px;
+    cursor:pointer;
+  }
+  .pagination button:hover:not(:disabled){ background:var(--surface); color:var(--ink); }
+  .pagination button:disabled{ opacity:0.4; cursor:not-allowed; }
+  .pagination button:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+  .page-info{ font-family:var(--font-mono); font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+
   /* legend */
   .legend{ display:flex; gap:16px; flex-wrap:wrap; margin:14px 0 4px; }
   .legend-item{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-2); }
@@ -398,7 +416,7 @@
     <div class="panel-head">
       <div>
         <p class="panel-title">All readings</p>
-        <p class="panel-sub">54 patients &middot; sorted by patient ID</p>
+        <p class="panel-sub" id="tableRange">54 patients &middot; sorted by patient ID</p>
       </div>
       <div class="toggle" id="tableToggle" role="group" aria-label="Filter table">
         <button data-filter="all" class="active">All</button>
@@ -419,6 +437,11 @@
         </thead>
         <tbody id="tbody"></tbody>
       </table>
+    </div>
+    <div class="pagination" id="pagination">
+      <button id="prevPage" type="button" aria-label="Previous page">&larr; Prev</button>
+      <span class="page-info" id="pageInfo">Page 1 of 1</span>
+      <button id="nextPage" type="button" aria-label="Next page">Next &rarr;</button>
     </div>
   </section>
 
@@ -581,9 +604,19 @@ document.getElementById("rules").innerHTML = RULES.map(r => `
 function chip(sev){
   return `<span class="chip ${sev}">${ICONS[sev]}${LABELS[sev]}</span>`;
 }
-function renderTable(filter){
-  const rows = DATA.patients.filter(p => filter === "all" || p.severity !== "good");
-  document.getElementById("tbody").innerHTML = rows.map(p => `
+
+const TABLE_PAGE_SIZE = 10;
+let tableFilter = "all";
+let tablePage = 1;
+
+function renderTable(){
+  const rows = DATA.patients.filter(p => tableFilter === "all" || p.severity !== "good");
+  const totalPages = Math.max(1, Math.ceil(rows.length / TABLE_PAGE_SIZE));
+  tablePage = Math.min(Math.max(tablePage, 1), totalPages);
+  const start = (tablePage - 1) * TABLE_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + TABLE_PAGE_SIZE);
+
+  document.getElementById("tbody").innerHTML = pageRows.length ? pageRows.map(p => `
     <tr>
       <td class="id">${p.id}</td>
       <td class="num">${p.hr} bpm</td>
@@ -595,15 +628,26 @@ function renderTable(filter){
           : `<span class="none">&mdash;</span>`}
       </td>
     </tr>
-  `).join("");
+  `).join("") : `<tr><td colspan="6" class="none" style="text-align:center;padding:20px 12px;">No readings match this filter.</td></tr>`;
+
+  document.getElementById("tableRange").textContent = rows.length
+    ? `Showing ${start + 1}–${Math.min(start + TABLE_PAGE_SIZE, rows.length)} of ${rows.length} · sorted by patient ID`
+    : "No matching readings";
+  document.getElementById("pageInfo").textContent = `Page ${tablePage} of ${totalPages}`;
+  document.getElementById("prevPage").disabled = tablePage === 1;
+  document.getElementById("nextPage").disabled = tablePage === totalPages;
 }
-renderTable("all");
+renderTable();
 document.getElementById("tableToggle").addEventListener("click", e => {
   const btn = e.target.closest("button");
   if(!btn) return;
   [...e.currentTarget.children].forEach(b => b.classList.toggle("active", b === btn));
-  renderTable(btn.dataset.filter);
+  tableFilter = btn.dataset.filter;
+  tablePage = 1;
+  renderTable();
 });
+document.getElementById("prevPage").addEventListener("click", () => { tablePage--; renderTable(); });
+document.getElementById("nextPage").addEventListener("click", () => { tablePage++; renderTable(); });
 
 // ---------- chart ----------
 const svg = document.getElementById("chart");
