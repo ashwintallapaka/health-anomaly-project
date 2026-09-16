@@ -27,7 +27,7 @@ wearable (simulated) → MQTT → Kafka → Spark (detection_rules.py) → Mongo
 | `common/schemas.py` | The shared field names, topic names, and message schema every component should agree on |
 | `infra/` | Scripts to create/delete the Dataproc cluster used for the Spark side |
 | `docs/dashboard_data_contract.md` | The MongoDB schema (`latest_vitals`, `alerts`) that the live pipeline writes to |
-| `docs/index.html` | The dashboard — rule engine vs. synthetic readings, plus the historical batch summary — hosted via [GitHub Pages](https://ashwintallapaka.github.io/health-anomaly-project/) |
+| `docs/index.html` | The dashboard — rule engine vs. synthetic readings, plus the historical batch summary — hosted at [http://136.64.118.114:8000](http://136.64.118.114:8000) |
 
 ## Getting started
 
@@ -152,8 +152,8 @@ sections currently embed their data directly in the HTML rather than fetching it
 live; `docs/dashboard_data_contract.md` documents the MongoDB shape (`latest_vitals`,
 `alerts`) that the live streaming job writes to, for whoever wires the dashboard up
 to read from Mongo directly. The layout is responsive up to a 1440px-wide column so
-it doesn't leave large unused margins on wide screens. It's hosted via GitHub Pages at
-**[ashwintallapaka.github.io/health-anomaly-project](https://ashwintallapaka.github.io/health-anomaly-project/)**
+it doesn't leave large unused margins on wide screens. It's hosted at
+**[http://136.64.118.114:8000](http://136.64.118.114:8000)**
 (Settings → Pages → deploy from the `main` branch, `/docs` folder).
 
 ## Status
