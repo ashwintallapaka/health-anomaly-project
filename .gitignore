@@ -12,3 +12,23 @@ venv/
 
 .venv-spark/
 batch_output/
+docs/data.json
+docs/index.html.backup
+.env
+docs/data.json
+docs/index.html.backup*
+__pycache__/
+venv/
+venv-spark/
+.env
+docs/data.json
+docs/index.html.backup*
+__pycache__/
+venv/
+venv-spark/
+.env
+docs/data.json
+docs/index.html.backup*
+__pycache__/
+venv/
+venv-spark/
