@@ -1,0 +1,17 @@
+[Unit]
+Description=Spark Structured Streaming - health anomaly detection
+After=network.target
+
+[Service]
+Type=simple
+User=abhaykulkarni
+WorkingDirectory=/home/abhaykulkarni/health-anomaly-project
+Environment="PATH=/home/abhaykulkarni/health-anomaly-project/venv/bin:/usr/bin:/bin"
+ExecStart=/home/abhaykulkarni/health-anomaly-project/venv/bin/spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3 --py-files spark/detection_rules.py spark/streaming_job.py
+Restart=always
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
