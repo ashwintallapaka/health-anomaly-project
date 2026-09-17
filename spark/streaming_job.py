@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+from datetime import datetime, timezone
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col, udf
 from pyspark.sql.types import StructType, StringType, IntegerType, FloatType, BooleanType
@@ -79,6 +80,19 @@ def write_to_mongo(batch_df, batch_id):
                 upsert=True
             )
 
+    # --- accumulate full history for the batch layer ---
+    history_docs = [{
+        "user_id":     r.asDict()["user_id"],
+        "timestamp":   r.asDict()["timestamp"],
+        "heart_rate":  r.asDict()["heart_rate"],
+        "body_temp_c": r.asDict()["body_temp_c"],
+        "spo2":        r.asDict()["spo2"],
+        "ingested_at": datetime.now(timezone.utc),
+    } for r in rows]
+
+    if history_docs:
+        db.readings_history.insert_many(history_docs)
+
     client.close()
     print(f"Batch {batch_id}: wrote {len(rows)} readings to Mongo")
 
@@ -89,3 +103,4 @@ query = scored.writeStream \
     .start()
 
 query.awaitTermination()
+
