@@ -1,0 +1,16 @@
+[Unit]
+Description=Dashboard web server
+After=network.target
+
+[Service]
+Type=simple
+User=abhaykulkarni
+WorkingDirectory=/home/abhaykulkarni/health-anomaly-project/docs
+ExecStart=/usr/bin/python3 -m http.server 8000
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

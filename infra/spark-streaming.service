@@ -1,6 +1,7 @@
 [Unit]
 Description=Spark Structured Streaming - health anomaly detection
-After=network.target
+After=network.target kafka.service
+Wants=kafka.service
 
 [Service]
 Type=simple

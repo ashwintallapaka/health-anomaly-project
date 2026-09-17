@@ -1,0 +1,18 @@
+[Unit]
+Description=MQTT to Kafka bridge
+After=network.target mosquitto.service kafka.service
+Wants=mosquitto.service kafka.service
+
+[Service]
+Type=simple
+User=abhaykulkarni
+WorkingDirectory=/home/abhaykulkarni/health-anomaly-project
+Environment="PATH=/home/abhaykulkarni/health-anomaly-project/venv/bin:/usr/bin:/bin"
+ExecStart=/home/abhaykulkarni/health-anomaly-project/venv/bin/python3 kafka/mqtt_to_kafka_bridge.py
+Restart=always
+RestartSec=15
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

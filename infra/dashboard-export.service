@@ -1,0 +1,17 @@
+[Unit]
+Description=Dashboard data exporter (MongoDB + GCS -> data.json)
+After=network.target
+
+[Service]
+Type=simple
+User=abhaykulkarni
+WorkingDirectory=/home/abhaykulkarni/health-anomaly-project
+Environment="PATH=/home/abhaykulkarni/health-anomaly-project/venv/bin:/usr/bin:/bin"
+ExecStart=/home/abhaykulkarni/health-anomaly-project/venv/bin/python3 dashboard_export.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
