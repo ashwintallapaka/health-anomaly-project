@@ -224,48 +224,48 @@ none of it hardcoded.
 
 ## Status
 
-- ✅ **The live pipeline is wired end-to-end**: `mqtt/publisher.py` → MQTT →
+- **Done —** **The live pipeline is wired end-to-end**: `mqtt/publisher.py` → MQTT →
   `kafka/mqtt_to_kafka_bridge.py` → Kafka `health-data` → `spark/streaming_job.py` →
   MongoDB (`latest_vitals`, `alerts`, `readings_history`) → `dashboard_export.py` →
   `docs/index.html`.
-- ✅ **Batch processing runs on a schedule and consumes pipeline-produced data.**
+- **Done —** **Batch processing runs on a schedule and consumes pipeline-produced data.**
   Cron triggers `infra/run_batch_job.sh` nightly; it exports MongoDB history to
   Cloud Storage, spins up a Dataproc cluster, runs `spark/batch_processing.py` over
   every accumulated date partition, writes a dated summary, and tears the cluster
   down. All four batch stages are covered.
-- ✅ **The dashboard renders live data.** Both the real-time view and the historical
+- **Done —** **The dashboard renders live data.** Both the real-time view and the historical
   batch summary read from `docs/data.json`, regenerated every 3 seconds from MongoDB
   and the latest batch output. Nothing on the page is hardcoded.
-- ⚠️ **Baseline (z-score) anomaly counts currently read 0.** This is a property of
+- **Caveat —** **Baseline (z-score) anomaly counts currently read 0.** This is a property of
   the synthetic data, not a bug: `mqtt/publisher.py` emits abnormal readings ~20% of
   the time using the same fixed values, so across a large accumulated dataset those
   values fall inside the patient's own standard deviation and stop registering as
   statistical outliers. Fixed-threshold detection still fires normally. On the
   smaller seed dataset, where anomalies were rare, baseline detection did flag them.
   Lowering the injection rate to a realistic few percent would restore the behaviour.
-- ⚠️ **The live streaming path still only knows fixed thresholds.** Mongo `alerts`
+- **Caveat —** **The live streaming path still only knows fixed thresholds.** Mongo `alerts`
   documents are always `rule: "threshold"` — `streaming_job.py` hasn't picked up the
   personal-baseline z-score check that `batch_processing.py` does. Porting that logic
   across (reading baselines from the batch output) is the natural next step.
-- ⚠️ **Field and topic names still don't match `common/schemas.py`.** The live
+- **Caveat —** **Field and topic names still don't match `common/schemas.py`.** The live
   pipeline uses topic `wearable/data` → `health-data` and fields `user_id`,
   `heart_rate`, `body_temp_c`, `spo2` — consistent across the publisher, bridge, and
   streaming job. `common/schemas.py` describes a richer intended contract (topic
   `wearables/{user_id}/vitals`, Kafka topics `vitals.raw`/`vitals.clean`/`vitals.alerts`,
   fields like `systolic_bp`, `steps`, `lat`/`lon`, and an `ALERT_SCHEMA` with
   `metric`, `z_score`, `severity`). Treat it as target design, not current state.
-- 🚧 **`kafka/producer.py` and `kafka/consumer.py` are not part of the live
+- **Inactive —** **`kafka/producer.py` and `kafka/consumer.py` are not part of the live
   pipeline.** Earlier standalone demos using topic `health-data` but fields
   `patient_id`/`temperature`, which don't match the bridge or streaming job.
-- 🧹 **`data/historical_vitals.csv` is now a seed, not the batch input.** It was
+- **Cleanup —** **`data/historical_vitals.csv` is now a seed, not the batch input.** It was
   copied into the archive as the `date=2026-09-01` partition to bootstrap the
   dataset; the batch job reads every partition, most of which the pipeline produced.
-- 🧹 **`mqtt/screenshots/` is ~71 MB of raw PNGs and screen recordings** committed
+- **Cleanup —** **`mqtt/screenshots/` is ~71 MB of raw PNGs and screen recordings** committed
   directly into git — most of the repo's weight. Consider a shared drive for future
   setup evidence, or at least compressing before committing.
-- 🧹 **`paho-mqtt` is declared in two `requirements.txt` files** with different pins:
+- **Cleanup —** **`paho-mqtt` is declared in two `requirements.txt` files** with different pins:
   `mqtt/requirements.txt` has `paho-mqtt==2.1.0`, `kafka/requirements.txt` has it
   unpinned (needed because `mqtt_to_kafka_bridge.py` lives in `kafka/` but talks to
   both brokers). Worth pinning consistently.
-- 🧹 **Merged branches safe to delete**: `Ashwin-spark-dashboard`, `abhay/day1`,
+- **Cleanup —** **Merged branches safe to delete**: `Ashwin-spark-dashboard`, `abhay/day1`,
   `chhaya-batch-processing`, `chhaya-kafka-setup`, `chhaya-personal-baselines`.
