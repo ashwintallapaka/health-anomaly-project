@@ -304,7 +304,3 @@ isn't managed here and is assumed to already be running as its own service.
   `mqtt/requirements.txt` has `paho-mqtt==2.1.0`, `kafka/requirements.txt` has it
   unpinned (needed because `mqtt_to_kafka_bridge.py` lives in `kafka/` but talks to
   both brokers). Worth pinning consistently.
-- **Cleanup —** **Merged branches safe to delete**: `Ashwin-spark-dashboard`, `abhay/day1`,
-  `chhaya-batch-processing`, `chhaya-kafka-setup`, `chhaya-personal-baselines`,
-  `abhay/historical-accumulation`. `abhay/personal-baseline-anomalies` still has one
-  commit not yet on `main` — leave that one alone for now.
