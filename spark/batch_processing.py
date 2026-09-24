@@ -2,6 +2,9 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 import sys
 
+sys.path.append("spark")
+from data_cleaning import clean_readings
+
 
 spark = SparkSession.builder \
     .appName("HealthAnomalyBatchProcessing") \
@@ -29,6 +32,19 @@ df = spark.read \
 
 
 print("Input historical data:")
+df.show(truncate=False)
+
+
+# ---------------------------------------------------------
+# 0. Data cleaning
+# ---------------------------------------------------------
+# Runs before anomaly detection so that missing values, duplicate
+# readings, and physiologically implausible values (sensor glitches, not
+# real anomalies) don't distort the personal-baseline mean/stddev computed
+# in step 2, or get counted as anomalies themselves.
+df, cleaning_report = clean_readings(df)
+
+print("Cleaned historical data:")
 df.show(truncate=False)
 
 
