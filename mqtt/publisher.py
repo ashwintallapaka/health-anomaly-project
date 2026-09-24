@@ -32,15 +32,25 @@ def normal_reading(base):
 
 
 def abnormal_reading(base):
-    """Start from a normal reading, then push exactly one vital past its threshold."""
+    """Start from a normal reading, then make exactly one vital abnormal.
+
+    Three kinds break a fixed threshold (heart_rate / spo2 / body_temp_c).
+    The fourth, "personal", stays INSIDE the global thresholds but is far from
+    this user's own baseline, so only the batch z-score rule can catch it.
+    """
     r = normal_reading(base)
-    rule = random.choice(["heart_rate", "spo2", "body_temp_c"])
+    rule = random.choice(["heart_rate", "spo2", "body_temp_c", "personal"])
     if rule == "heart_rate":
         r["heart_rate"] = random.choice([random.randint(38, 49), random.randint(125, 155)])
     elif rule == "spo2":
         r["spo2"] = random.randint(84, 91)
-    else:
+    elif rule == "body_temp_c":
         r["body_temp_c"] = round(random.uniform(38.2, 39.6), 1)
+    else:
+        # e.g. P002 (baseline 65) -> 95..105, P003 (baseline 80) -> 110..119:
+        # normal by the fixed rules, 4-5 standard deviations off for that person
+        shift = random.choice([-1, 1]) * random.randint(30, 40)
+        r["heart_rate"] = int(min(119, max(51, base["hr"] + shift)))
     return r
 
 
