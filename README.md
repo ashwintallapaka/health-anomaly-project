@@ -41,7 +41,8 @@ rather than hand-made for testing.
 | `spark/detection_rules.py` | The anomaly detection rules |
 | `spark/streaming_job.py` | Spark Structured Streaming job: reads Kafka, applies the rules, writes `latest_vitals`, `alerts`, and `readings_history` to MongoDB |
 | `spark/batch_processing.py` | Batch job: reads accumulated historical vitals, flags anomalies two ways (fixed thresholds, and a personal-baseline z-score per patient), writes a per-patient summary |
-| `spark/test_detection_rules.py`, `spark/spark_test.py`, `spark/check_version.py` | Local smoke tests / cluster version check |
+| `spark/data_cleaning.py` | Runs before scoring: drops rows with missing values, exact duplicate readings, and physiologically implausible values, which are a data-quality problem rather than a genuine anomaly |
+| `spark/test_detection_rules.py`, `spark/test_data_cleaning.py`, `spark/spark_test.py`, `spark/check_version.py` | Local smoke tests / cluster version check |
 | `export_history_to_gcs.py` | Exports a day's readings from MongoDB `readings_history` to a dated Cloud Storage partition |
 | `dashboard_export.py` | Polls MongoDB and the latest batch output, writes `docs/data.json` for the dashboard |
 | `data/historical_vitals.csv` | Seed historical readings (3 patients, 45 rows) used to bootstrap the archive before the pipeline had accumulated its own |
@@ -164,11 +165,23 @@ own mean and standard deviation, flagging `|z| > 3`). Writes a per-patient summa
 reading count, avg/min/max heart rate, avg/max temp, avg/min SpO₂, and separate
 threshold-anomaly and baseline-anomaly counts.
 
+Before any of that, `spark/data_cleaning.py` cleans the batch: it drops rows missing a
+required field, exact duplicate readings for the same patient at the same timestamp,
+and physiologically implausible values (heart rate outside 20–250 bpm, body temp
+outside 30–45°C, SpO₂ outside 0–100%). That's a different problem from a genuine
+anomaly — a heart rate of 135 is dangerous but real and has to stay in the data for the
+detector to catch it, while a heart rate of 400 can't be a real reading and would only
+skew the personal-baseline stats above if left in. `batch_processing.py` prints how
+many rows were removed at each stage; on the current 45-row seed archive it's zero at
+every stage.
+
 ```bash
 python spark/batch_processing.py
 # defaults to data/historical_vitals.csv -> ./batch_output
 
 python spark/batch_processing.py <input_path> <output_path>
+
+python spark/test_data_cleaning.py   # cleaning module on its own, with deliberately dirty sample rows
 ```
 
 Reading every date partition at once (what the scheduled run does) means baselines
@@ -265,6 +278,13 @@ isn't managed here and is assumed to already be running as its own service.
   Cloud Storage, spins up a Dataproc cluster, runs `spark/batch_processing.py` over
   every accumulated date partition, writes a dated summary, and tears the cluster
   down. All four batch stages are covered.
+- **Done —** **Batch input is validated before scoring.** `spark/data_cleaning.py` drops
+  rows with missing or unparseable values, exact duplicate readings, and
+  physiologically implausible values before `batch_processing.py` computes thresholds
+  and personal baselines — distinct from a genuine anomaly, which is a real, concerning
+  reading that has to stay in the data. Zero rows are dropped at every stage on the
+  current 45-row seed archive, which is what it already looked like before this check
+  existed.
 - **Done —** **The dashboard renders live data.** Both the real-time view and the historical
   batch summary read from `docs/data.json`, regenerated every 3 seconds from MongoDB
   and the latest batch output. Nothing on the page is hardcoded.
